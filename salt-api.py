@@ -6,54 +6,57 @@ import argparse
 import yaml
 import random
 import time
-import sys,os
+import sys
+import health
+import threading
 from logger import log
-from health import check
+from health import marathon_check
 
 
+__author__ = zhanggx
+logger = log()
 
 class SaltApi(object):
     def __init__(self, salturl, saltname, saltpassword):
         self.__salturl = salturl
         self.__saltname = saltname
         self.__password = saltpassword
-        self.logger = log()
 
     def token(self, prefix='login'):
-        json_body={"eauth": "pam", "username": self.__saltname, "password": self.__password}
+        json_body = {"eauth": "pam", "username": self.__saltname, "password": self.__password}
         resp = requests.post('/'.join((self.__salturl, prefix)), json=json_body)
         try:
             self.__token = resp.json()['return'][0]['token']
         except KeyError  as e:
-            self.logger.exception('KeyError')
+            logger.exception('KeyError')
             sys.exit(2)
 
-    def postrequest(self,json_body):
+    def postrequest(self, json_body):
         self.token()
         header = {"X-Auth-Token":self.__token}
-        resp = requests.post(self.__salturl,headers=header,json=json_body)
+        resp = requests.post(self.__salturl, headers=header, json=json_body)
         return resp.json()
 
     def remote_execute(self, tgt, arg=None, fun='cmd.run'):
         self.token()
-        header = {"X-Auth-Token":self.__token}
+        header = {"X-Auth-Token": self.__token}
         print(header)
-        json_body = {"client": "local","tgt": tgt, "fun": fun, "arg": arg}
+        json_body = {"client": "local", "tgt": tgt, "fun": fun, "arg": arg}
         print(self.__salturl)
         resp = requests.post(self.__salturl, headers=header, json=json_body)
         try:
             return resp.json()
         except KeyError:
-            self.logger.exception('{0}执行出错，请检查minion是否正常!'.format(tgt))
+            logger.exception('{0}执行出错，请检查minion是否正常!'.format(tgt))
             sys.exit(2)
 
 def parser_args():
     paser = argparse.ArgumentParser()
-    paser.add_argument('-a','--app',help='appname info',action="store")
-    paser.add_argument('-e','--env',help='deploy env',action='store')
-    paser.add_argument('-u','--url',help='package resource url',action='store')
-    paser.add_argument('-w','--war',help='war package name',action='store')
-    args=paser.parse_args()
+    paser.add_argument('-a', '--app', help='appname info', action="store")
+    paser.add_argument('-e', '--env', help='deploy env', action='store')
+    paser.add_argument('-u', '--url', help='package resource url', action='store')
+    paser.add_argument('-w', '--war', help='war package name', action='store')
+    args = paser.parse_args()
     return args
 
 def parser_conf(conf):
@@ -61,7 +64,6 @@ def parser_conf(conf):
         try:
             return yaml.load(fp)
         except Exception:
-            logger = log()
             logger.exception("yaml配置错误，请检查deploy.yaml文件!")
             sys.exit(2)
 
@@ -120,10 +122,10 @@ def main():
                     api.remote_execute(host["hostname"],fun="saltutil.kill_job",arg=v)
 
     # 调度marathon api接口启动docker
-    marathost = hosts[random.choice(len(hosts))]['hostname']
+    marathost = hosts[random.choice(range(len(hosts)))]['hostname']
     # 检查容器是否为marathon应用
     check_app = api.remote_execute(marathost,arg='ls /xinguang/{0}/bin/tomcat/{1}'.format(app,app+'.json'))
-    if check_app['return'][0][marathost] == app+'.json'
+    if check_app['return'][0][marathost] == app+'.json':
         # 检查docker是否已经存在了
         check_marathon = requests.get('/'.join((data['marathonurl','v2','apps',env,project,app])))
         if 'message' in check_marathon.json():
@@ -143,10 +145,14 @@ def main():
     time.sleep(60)
     docker_count = 1
     while docker_count < 10:
+        result = marathon_check(env, project, app)
+        time.sleep(30)
+        if not result:
+            logger.info('第{}次检查健康状态，未成功，请等待...'.format(docker_count))
+            docker_count += 1
 
-
-
-
+    logger.error('检测服务多次，未成功部署成功，应用服务已经报错，请自行查看应用启动日志!')
+    sys.exit(1)
 
 if __name__ == "__main__":
     main()

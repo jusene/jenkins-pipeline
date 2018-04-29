@@ -1,5 +1,5 @@
 salturl: "http://10.211.55.16:8080"
-marathonurl: "http://10.211.55.17:8080"
+marathonurl: "http://ops-cd-mesos01.sysadmin.xinguangnet.com:8080"
 saltusername: "salttest"
 saltpassword: "123456"
 
