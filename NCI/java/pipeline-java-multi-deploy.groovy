@@ -30,6 +30,10 @@ try{
                     env.BRANCH = 'prod'
                 }
 
+                if ("${BRANCH}" == 'tmp_190220') {
+                    env.BRANCH = 'test'
+                }
+
                 stage('Do Package打包') {
                     if ("${PROJECT}" == 'iot') {
                         sh "mvn clean install -Dmaven.test.skip=true -pl iot-beans,iot-facade,iot-common,${RUN_APPNAME} -f pom.xml"
@@ -64,7 +68,7 @@ try{
                 }
 
                 stage("发布${BRANCH}环境"){
-                    sh "python deploy.py -a ${RUN_APPNAME} -p ${PROJECT} -v ${VERSION} -e ${BRANCH} -u http://192.168.66.94:88 -t ${datetime}"
+                    sh "python deploy_multi.py -a ${RUN_APPNAME} -p ${PROJECT} -v ${VERSION} -e ${BRANCH} -u http://192.168.66.94:88 -t ${datetime}"
                 } 
             }
     }

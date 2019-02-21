@@ -1,13 +1,12 @@
 node("master") {
     try {
         stage("拉取部署代码库") {
-            git branch: "master", credentialsId: '891746d8-70de-4910-a0ee-d1b4c110adf6', url: "http://192.168.55.156:8090/ops/NCD.git"
+            git branch: "master", credentialsId: '9852bbe8-3935-47a5-b24c-d684c89387d2', url: "http://192.168.55.156:8090/ops/NCD.git"
         }
         
         stage("同步服务器系统时间和硬件时间") {
-            sh "ansible ${HOSTS} -m yum -a \"name=ntpdate,crontabs,vixie-cron state=latest\""
-            sh "ansible ${HOSTS} -m service -a \"name=crond state=started\""
-            sh "ansible ${HOSTS} -m cron -a \"name='ntpdate time' job='/usr/sbin/ntpdate ntp1.aliyun.com && hwclock -w &> /dev/null' minute='*/5' user=root\""
+            sh "ansible ${HOSTS} -m yum -a \"name=ntpdate\""
+            sh "ansible ${HOSTS} -m cron -a \"name='ntpdate time' job='/usr/sbin/ntpdate ntp1.aliyun.com &> /dev/null && hwclock -w &> /dev/null' minute='*/5' user=root\""
         }
 
         stage("关闭selinux") {

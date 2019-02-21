@@ -30,7 +30,7 @@
     shell: tar xf /ddhome/packages/{{ app }}.tar.gz -C /ddhome/project/{{ project }}/{{ version }}/{{ dir }}/
   - name: First deploy
     shell: export NODE_ENV={{ env }};cd /ddhome/project/{{ project }}/{{ version }}/{{ dir }}/; pm2 start ./bin/www --name {{ node }}
-    when: times.stdout == "first"
+    when: times.stdout == "deploy"
   - name: Reload deploy
     shell: export NODE_ENV={{ env }};cd /ddhome/project/{{ project }}/{{ version }}/{{ dir }}/; pm2 reload {{ node }}
-    when: times.stdout != "first"
+    when: times.stdout == "upgrade"

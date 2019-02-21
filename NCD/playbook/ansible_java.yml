@@ -23,6 +23,13 @@
       dest: /ddhome/packages/{{ app }}.jar
       mode: 0740
       force: yes
+  - name: Get bin from {{ url }}
+    get_url:
+      url: "{{ url }}/{{ project }}/{{ version }}/BIN/{{ env }}/{{ time }}/{{ app }}.tar.gz"
+      dest: /ddhome/packages/{{ app }}.tar.gz
+      mode: 0740
+      force: yes
+    when: appname.stdout in ["huayun-lab-report","huayun-lab-auth","huayun-lab-data"]
   - name: Create a running dir
     file:
       path: /ddhome/project/{{ project }}/{{ version }}/server/{{ app }}
@@ -35,6 +42,9 @@
       src: ../templates/startup.j2 
       dest: /ddhome/project/{{ project }}/{{ version }}/server/{{ app }}/startup.sh
       mode: 0740
+  - name: Copy bin script to running dir
+    shell: tar xf /ddhome/packages/{{ app }}.tar.gz -C /ddhome/project/{{ project }}/{{ version }}/server/{{ app }}
+    when: appname.stdout in ["huayun-lab-report","huayun-lab-auth", "huayun-lab-data"]
   - name: Stop Service
     shell: cd /ddhome/project/{{ project }}/{{ version }}/server/{{ app }};./startup.sh stop
   - name: wait 10 seconds
@@ -42,10 +52,6 @@
     when: appname.stdout in ["iot-registe","iot-config","huayun-common-eureka","huayun-common-config"]
   - name: Start Service
     shell: export BUILD_ID=DONTKILLME;cd /ddhome/project/{{ project }}/{{ version }}/server/{{ app }};./startup.sh start {{ env }}
-    when: environ.stdout != "master"
-  - name: Start Service
-    shell: export BUILD_ID=DONTKILLME;cd /ddhome/project/{{ project }}/{{ version }}/server/{{ app }};./startup.sh start prod
-    when: environ.stdout == "master"
   - name: wait 20 seconds
     shell: sleep 20
     when: appname.stdout in ["iot-registe","iot-config","huayun-common-eureka","huayun-common-config"]

@@ -46,7 +46,9 @@ JAVA_OPTS='
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=/ddhome/project/{{ project }}/{{ version }}/server/{{ app }}/jvmdebug/dump/heapdump-room.hprof
 -Xloggc:/ddhome/project/{{ project }}/{{ version }}/server/{{ app }}/gclog.log
-
+{% if appname.stdout == 'iot-gateway' %}
+-Djava.io.tmpdir=/ddhome/tmp
+{% endif %}
 -Djava.rmi.server.hostname={{ host }}
 -Djavax.management.builder.initial=
 -Dcom.sun.management.jmxremote=true
@@ -80,7 +82,7 @@ se_start()
 se_stop()
 {
     # 优雅的结束
-    kill `cat ${PID}` || return 0
+    kill `cat ${PID}`
     rm -rf ${PID}
     echo "=== stop ${SERVICE_NAME}"
 

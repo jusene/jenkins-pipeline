@@ -33,29 +33,29 @@
       state: directory
       recurse: yes
       owner: nginx
-    when: envir.stdout != "master"
+    when: envir.stdout != "prod"
   - name: Create a dir on prod
     file:
       path: /ddhome/project/{{ project }}/{{ version }}/web/{{ dir }}
       state: directory
       recurse: yes
       owner: nginx
-    when: envir.stdout == "master"
+    when: envir.stdout == "prod"
   - name: Clear dest dir on {{ env }}
     shell: rm -rf /ddhome/project/{{ project }}/{{ version }}/web/{{ env }}/{{ dir }}/*
-    when: envir.stdout != "master"
+    when: envir.stdout != "prod"
   - name: Clear dest dir on prod
     shell: rm -rf /ddhome/project/{{ project }}/{{ version }}/web/{{ dir }}/*
-    when: envir.stdout == "master"
+    when: envir.stdout == "prod"
   - name: Copy package to  dir on {{ env }}
     shell: tar xf /ddhome/packages/{{ app }}.tar.gz -C /ddhome/project/{{ project }}/{{ version }}/web/{{ env }}/{{ dir }}/
-    when: envir.stdout != "master"
+    when: envir.stdout != "prod"
   - name: Copy package to  dir on prod
     shell: tar xf /ddhome/packages/{{ app }}.tar.gz -C /ddhome/project/{{ project }}/{{ version }}/web/{{ dir }}/
-    when: envir.stdout == "master"
+    when: envir.stdout == "prod"
   - name: Chown user on {{ env }}
     shell: chown -R nginx.nginx /ddhome/project/{{ project }}/{{ version }}/web/{{ env }}/{{ dir }}/
-    when: envir.stdout != "master"
+    when: envir.stdout != "prod"
   - name: Chown user on prod
-    shell: chown -R nginx.nginx /ddhome/project/{{ project }}/{{ version }}/web{{ dir }}/
-    when: envir.stdout == "master"
+    shell: chown -R nginx.nginx /ddhome/project/{{ project }}/{{ version }}/web/{{ dir }}/
+    when: envir.stdout == "prod"

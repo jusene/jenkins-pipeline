@@ -1,0 +1,13 @@
+FROM reg.ops.com/library/jre8-alpine:latest
+MAINTAINER zj-huawei
+
+WORKDIR /ddhome/project/{{ PROJECT }}/{{ VERSION }}/server/{{ APP }}/
+
+COPY {{ APP }}-zjhw.jar ./{{ APP }}.jar
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+{% if CERT  %}
+COPY cert /ddhome/local/cert/
+{% endif %}
+
+ENTRYPOINT ["sh", "./docker-entrypoint.sh"]
+CMD []

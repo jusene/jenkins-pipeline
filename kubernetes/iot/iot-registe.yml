@@ -1,0 +1,52 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: iot-registe
+    namespace: iot
+spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: iot-registe
+        tier: backend
+        release: k8s-1.0
+    template:
+      metadata:
+        labels:
+          app: iot-registe
+          tier: backend
+          release: k8s-1.0
+      spec:
+          containers:
+          - name: iot-registe
+            image: reg.ops.com/iot2/iot-registe:1550461751
+            imagePullPolicy: IfNotPresent
+            args: ["dev"]
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "512m"
+              limits:
+                memory: "1024Mi"
+                cpu: "1024m"
+            ports:
+            - name: iot-registe
+              containerPort: 8081
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iot-registe-service
+  namespace: iot
+spec:
+  selector:
+    app: iot-registe
+    tier: backend
+    release: k8s-1.0
+  clusterIP: 10.254.40.33
+  type: NodePort
+  ports:
+  - port: 8081
+    targetPort: 8081
+    nodePort: 30001

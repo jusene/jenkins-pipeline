@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# params
+APP_ENV=$1
+
+# JAVA_OPTS
+JAVA_OPTS="
+-server
+-XX:+UseG1GC
+-Xss512k
+-Xms512m
+-Xmx512m
+-XX:SurvivorRatio=6
+-XX:+PrintGCDetails
+-XX:+PrintGCDateStamps
+-XX:+PrintGCTimeStamps
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/ddhome/project/{{ PROJECT }}/{{ VERSION }}/server/{{ APP }}/heapdump-room.hprof
+-Xloggc:/ddhome/project/{{ PROJECT }}/{{ VERSION }}/server/{{ APP }}/gclog.log
+-Dspring.profiles.active=${APP_ENV}"
+
+
+case $APP_ENV in
+"dev"|"test"|"prod")
+    java $JAVA_OPTS -jar {{ APP }}.jar | tee {{ APP }}.log
+    ;;
+"sh")
+    /bin/sh
+    ;;
+*)
+    echo "Usage: $0 (dev|test|prod|sh)"
+    ;;
+esac
+    
+
+
+

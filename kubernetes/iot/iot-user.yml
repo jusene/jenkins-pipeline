@@ -1,0 +1,49 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: iot-user
+  namespace: iot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: iot-user
+  template:
+    metadata:
+      labels:
+        name: iot-user
+        tier: frontend
+        release: k8s-1.0 
+    spec:
+      containers:
+      - image: reg.ops.com/iot2/iot-user:latest
+        name: iot-user
+        imagePullPolicy: Always 
+        resources:
+          limits:
+            cpu: 200m
+            memory: 300Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        ports:
+          - name: iot-user
+            containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iot-user-service
+  namespace: iot
+spec:
+  selector:
+    name: iot-user
+    tier: frontend
+    release: k8s-1.0
+  type: NodePort
+  ports:
+  - name: iot-user
+    port: 80
+    targetPort: 80
+    nodePort: 30004
+

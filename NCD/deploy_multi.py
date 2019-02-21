@@ -3,15 +3,16 @@
 
 import argparse
 import os
+import yaml
 import sys
 import subprocess
 import urllib2
 import json
 import logging
-from check import check
-import time
+import multiprocessing
 
 basedir = os.path.dirname(os.path.abspath(__file__))
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - Deploy - %(levelname)s: %(message)s")
 
 
 # 设置解析参数
@@ -86,23 +87,7 @@ class Deploy(object):
                 version=self.version,
                 env=self.env,
                 jmx=jmx), shell=True)
-        # 健康检查
-        if app not in ["iot-registe", "iot-turbine"] and self.project not in ["bigdata",]:
-            health = check(host, app, self.env)
-            check_times = 1
-            while True:
-                status = health.health_check()
-                if status == "UP":
-                    logging.info('****** {app} health check UP'.format(app=app))
-                    return 0
-                else:
-                    check_times += 1
-                    time.sleep(5)
-                if check_times >= 10:
-                    logging.error('****** {app} health check more than 10 times, still false.'.format(app=app))
-                    return 2
-        else:
-            return retcode
+        return retcode
 
     def js(self, host, app):
         logging.info('****** Deploy JavaScript App ******')
@@ -120,22 +105,42 @@ class Deploy(object):
                 dir=self.directory), shell=True)
         return retcode
 
+# 队列挑选
+def Process_pool():
+    Pool = []
+    Que = []
+    def wrap(*args, **kwargs):
+        if args[1] in ['iot-registe', 'iot-config', 'huayun-common-eureka', 'huayun-common-config']:
+            Que.append(args[0])
+        else:
+            Pool.append(args[0])
+        return Pool, Que
+    return wrap
 
 if __name__ == "__main__":
     args = Parser()
     deploy = Deploy(args)
+    pool = Process_pool()
     for app in deploy.apps.split(','):
         config = manifest(app, deploy.env)
         hosts = config['hosts']
         jmx = config['jmx']
         for host in hosts:
             if deploy.directory is None:
-                retcode = deploy.java(host, app, jmx)
+                p1 = multiprocessing.Process(target=deploy.java,args=(host,app,jmx))
+                process_pool, queue_pool = pool(p1, app)
             else:
                 if deploy.node is None:
-                    retcode = deploy.js(host, app)
+                    p2 = multiprocessing.Process(target=deploy.js,args=(host,app))
+                    process_pool, queue_pool = pool(p2, app)
                 else:
-                    retcode = deploy.nodejs(host, app)
-            if retcode != 0:
-                sys.exit(2)
+                    p3 = multiprocessing.Process(target=deploy.nodejs,args=(host,app))
+                    process_pool, queue_pool = pool(p3, app)
+
+    for q in queue_pool:
+        q.start()
+        q.join()
+
+    for p in process_pool:
+        p.start()
 
