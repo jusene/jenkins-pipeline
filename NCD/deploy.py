@@ -8,14 +8,17 @@ import subprocess
 import urllib2
 import json
 import logging
+import threading
 from check import check
-import time
+
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 
 
-# 设置解析参数
 def Parser():
+    '''
+    analy parameter
+    '''
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", '--appname', help="Get deploy appname")
     parser.add_argument("-e", '--env', help="Get deploy env")
@@ -30,19 +33,65 @@ def Parser():
     return args
 
 
-# 设置资源解析
 def manifest(appname, env):
-    header = {"User-Agent": "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0;",
+    '''
+    fetch resource：
+
+    appname: 
+        want a app param
+
+    env:
+        want a env param
+    '''
+    try:
+        header = {"User-Agent": "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0;",
               "Accept": "application/json"}
-    request = urllib2.Request("http://192.168.55.156:5000/deploy?app={app}&env={env}".format(app=appname, env=env),
+        request = urllib2.Request("http://192.168.55.156:5000/deploy?app={app}&env={env}".format(app=appname, env=env),
                               headers=header)
-    resp = urllib2.urlopen(request)
-    config = json.loads(resp.read())
-    return config
+        resp = urllib2.urlopen(request)
+        config = json.loads(resp.read())
+        return config
+    except Exception as e:
+        logging.error("fetch resource error，please check manifest and request http://192.168.55.156:5000/deploy?app={app}&env={env}".format(app=appname, env=env))
+        sys.exit(500)
+    finally:
+        resp.close()
 
 
-# 设置应用方法
+def health_check(host, app, env):
+    '''
+    health check:
+
+    host：
+        deploy host
+
+    app:
+        want a app name
+
+    env:
+        want a env name
+    '''
+    event = threading.Event()
+    check_times = 1
+    health = check(host, app, env)
+    while not event.wait(5):
+        status = health.health_check()
+        if status == "UP":
+            logging.info('****** {app} health check UP'.format(app=app))
+            return 0
+        else:
+            check_times += 1
+            if check_times >= 10:
+                logging.error('****** {app} health check more than 10 times, still false.'.format(app=app))
+                return 2
+
+
 class Deploy(object):
+    '''
+    application class：
+
+        Method of deploying various environments
+    '''
     def __init__(self, args):
         self.apps = args.appname
         self.env = args.env
@@ -72,11 +121,11 @@ class Deploy(object):
                 first=self.first), shell=True)
         return retcode
 
-    def java(self, host, app, jmx):
+    def java(self, host, app):
         logging.info('****** Deploy Java App ******')
         retcode = subprocess.call(
             'ansible-playbook {playbook} -e host={ho} -e url={url} -e app={app} -e time={time} -e project={project} \
-             -e env={env} -e version={version} -e jmx={jmx}'.format(
+             -e env={env} -e version={version}'.format(
                 playbook='/'.join([basedir, 'playbook', 'ansible_java.yml']),
                 ho=host,
                 url=self.url,
@@ -84,25 +133,13 @@ class Deploy(object):
                 time=self.time,
                 project=self.project,
                 version=self.version,
-                env=self.env,
-                jmx=jmx), shell=True)
-        # 健康检查
-        if app not in ["iot-registe", "iot-turbine"] and self.project not in ["bigdata",]:
-            health = check(host, app, self.env)
-            check_times = 1
-            while True:
-                status = health.health_check()
-                if status == "UP":
-                    logging.info('****** {app} health check UP'.format(app=app))
-                    return 0
-                else:
-                    check_times += 1
-                    time.sleep(5)
-                if check_times >= 10:
-                    logging.error('****** {app} health check more than 10 times, still false.'.format(app=app))
-                    return 2
-        else:
+                env=self.env
+                ), shell=True)
+        # health check
+        if self.project not in ["bigdata",]:
+            retcode = health_check(host, app, self.env)
             return retcode
+        return retcode
 
     def js(self, host, app):
         logging.info('****** Deploy JavaScript App ******')
@@ -127,10 +164,9 @@ if __name__ == "__main__":
     for app in deploy.apps.split(','):
         config = manifest(app, deploy.env)
         hosts = config['hosts']
-        jmx = config['jmx']
         for host in hosts:
             if deploy.directory is None:
-                retcode = deploy.java(host, app, jmx)
+                retcode = deploy.java(host, app)
             else:
                 if deploy.node is None:
                     retcode = deploy.js(host, app)

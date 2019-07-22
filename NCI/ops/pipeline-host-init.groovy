@@ -10,7 +10,7 @@ node("master") {
         }
 
         stage("关闭selinux") {
-            sh "ansible ${HOSTS} -m lineinfile -a \"path=/etc/selinux/config regexp='^SELINUX=' line='SELINUX=disable'\""
+            sh "ansible ${HOSTS} -m lineinfile -a \"path=/etc/selinux/config regexp='^SELINUX=' line='SELINUX=disabled'\""
         }
 
         stage("同步服务器内核参数") {

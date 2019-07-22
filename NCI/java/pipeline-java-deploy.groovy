@@ -30,7 +30,7 @@ try{
                     env.BRANCH = 'prod'
                 }
 
-                stage('Do Package打包') {
+                stage('Do Package打包') {                                         
                     if ("${PROJECT}" == 'iot') {
                         sh "mvn clean install -Dmaven.test.skip=true -pl iot-beans,iot-facade,iot-common,${RUN_APPNAME} -f pom.xml"
                     }
@@ -67,31 +67,7 @@ try{
                     sh "python deploy.py -a ${RUN_APPNAME} -p ${PROJECT} -v ${VERSION} -e ${BRANCH} -u http://192.168.66.94:88 -t ${datetime}"
                 } 
             }
-    }
-            // 自动化测试
-            if ("${BRANCH}" == 'test') {
-                node('master')
-			        stage('执行冒烟用例') {
-				    switch("${AUTOTEST}") {            
-					    case "iot2.0-api": 
-						    build job: 'IOT-Api-SmokeTesting'; 
-						    break; 
-					    case "iot2.0-ui": 
-						    build job: 'IOT-UI-SmokeTesting'; 
-						    break; 
-					    case "bigdata2.0-api": 
-						    build job: 'BigData2.0-Api-SmokeTesting'; 
-						    break; 
-					    case "bigdata2.0-ui": 
-						    build job: 'BigData2.0-UI-SmokeTesting'; 
-						    break; 
-					    default: 
-						    println("The value is unknown"); 
-						    break; 
-				    }
-                }
-            }
-            	
+    }	
     
 
 } catch (err) {

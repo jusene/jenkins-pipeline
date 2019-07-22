@@ -10,13 +10,16 @@ import urllib2
 import json
 import logging
 import multiprocessing
+from config import config as Q
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - Deploy - %(levelname)s: %(message)s")
 
 
-# 设置解析参数
 def Parser():
+    '''
+    analy parameter
+    '''
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", '--appname', help="Get deploy appname")
     parser.add_argument("-e", '--env', help="Get deploy env")
@@ -31,19 +34,37 @@ def Parser():
     return args
 
 
-# 设置资源解析
+
 def manifest(appname, env):
-    header = {"User-Agent": "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0;",
+    '''
+    fetch resource：
+
+    appname: 
+        want a app param
+
+    env:
+        want a env param
+    '''
+    try:
+        header = {"User-Agent": "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0;",
               "Accept": "application/json"}
-    request = urllib2.Request("http://192.168.55.156:5000/deploy?app={app}&env={env}".format(app=appname, env=env),
+        request = urllib2.Request("http://192.168.55.156:5000/deploy?app={app}&env={env}".format(app=appname, env=env),
                               headers=header)
-    resp = urllib2.urlopen(request)
-    config = json.loads(resp.read())
-    return config
+        resp = urllib2.urlopen(request)
+        conf = json.loads(resp.read())
+        return conf
+    except Exception as e:
+        logging.error("fetch resource error，please check manifest and request http://192.168.55.156:5000/deploy?app={app}&env={env}".format(app=appname, env=env))
+        sys.exit(500)
 
 
-# 设置应用方法
+
 class Deploy(object):
+    '''
+    application class：
+
+        Method of deploying various environments
+    '''
     def __init__(self, args):
         self.apps = args.appname
         self.env = args.env
@@ -73,11 +94,11 @@ class Deploy(object):
                 first=self.first), shell=True)
         return retcode
 
-    def java(self, host, app, jmx):
+    def java(self, host, app, jmx, remote):
         logging.info('****** Deploy Java App ******')
         retcode = subprocess.call(
             'ansible-playbook {playbook} -e host={ho} -e url={url} -e app={app} -e time={time} -e project={project} \
-             -e env={env} -e version={version} -e jmx={jmx}'.format(
+             -e env={env} -e version={version} -e jmx={jmx} -e remote={remote}'.format(
                 playbook='/'.join([basedir, 'playbook', 'ansible_java.yml']),
                 ho=host,
                 url=self.url,
@@ -86,7 +107,8 @@ class Deploy(object):
                 project=self.project,
                 version=self.version,
                 env=self.env,
-                jmx=jmx), shell=True)
+                jmx=jmx,
+                remote=remote), shell=True)
         return retcode
 
     def js(self, host, app):
@@ -105,12 +127,14 @@ class Deploy(object):
                 dir=self.directory), shell=True)
         return retcode
 
-# 队列挑选
 def Process_pool():
+    '''
+    Queue selection
+    '''
     Pool = []
     Que = []
     def wrap(*args, **kwargs):
-        if args[1] in ['iot-registe', 'iot-config', 'huayun-common-eureka', 'huayun-common-config']:
+        if args[1] in Q.get(ENV).QUEUE:
             Que.append(args[0])
         else:
             Pool.append(args[0])
@@ -119,15 +143,17 @@ def Process_pool():
 
 if __name__ == "__main__":
     args = Parser()
+    ENV = args.env
     deploy = Deploy(args)
     pool = Process_pool()
     for app in deploy.apps.split(','):
-        config = manifest(app, deploy.env)
-        hosts = config['hosts']
-        jmx = config['jmx']
+        conf = manifest(app, deploy.env)
+        hosts = conf['hosts']
+        jmx = conf['jmx']
+        remote = conf['remote']
         for host in hosts:
             if deploy.directory is None:
-                p1 = multiprocessing.Process(target=deploy.java,args=(host,app,jmx))
+                p1 = multiprocessing.Process(target=deploy.java,args=(host,app,jmx,remote))
                 process_pool, queue_pool = pool(p1, app)
             else:
                 if deploy.node is None:

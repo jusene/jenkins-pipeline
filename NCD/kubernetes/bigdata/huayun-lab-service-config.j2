@@ -1,0 +1,87 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: huayun-lab-service-config
+    namespace: bigdata-{{ ENV }}
+spec:
+    {% if ENV == "prod" %}
+    replicas: 1
+    minReadySeconds: 60
+    {% else %}
+    replicas: 1
+    {% endif %}
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: huayun-lab-service-config
+        env: {{ ENV }}
+        tier: backend
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: huayun-lab-service-config
+          env: {{ ENV }}
+          tier: backend
+          release: k8s-release
+      spec:
+          {% if ENV == "prod" %}
+          imagePullSecrets:
+          - name: regsecret
+          {% endif %}
+          containers:
+          - name: huayun-lab-service-config
+            {% if ENV == "prod" %}
+            image: reg.k8s.com/bigdata-{{ ENV }}/huayun-lab-service-config:{{ TIMESTAMP }}
+            {% else %}
+            image: reg.ops.com/bigdata-{{ ENV }}/huayun-lab-service-config:{{ TIMESTAMP }}
+            {% endif %}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              requests:
+                memory: "1024Mi"
+                cpu: "500m"
+              limits:
+                memory: "2048Mi"
+                cpu: "1000m"
+            ports:
+            - name: service-config
+              containerPort: 8804
+            
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: huayun-config-service
+  namespace: bigdata-{{ ENV }}
+spec:
+  selector:
+    app: huayun-lab-service-config
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - port: 8804
+    targetPort: 8804
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: huayun-lab-service-config
+  namespace: bigdata-{{ ENV }}
+ 
+spec:
+
+  rules:
+  - host: huayun-lab-service-config.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: huayun-config-service
+          servicePort: 8804
+
+

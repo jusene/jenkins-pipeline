@@ -1,0 +1,114 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: service-exam
+    namespace: arch-{{ ENV }}
+spec:
+    {% if ENV == "prod" %}
+    replicas: 2
+    minReadySeconds: 60
+    {% else %}
+    replicas: 1
+    {% endif %}
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: service-exam
+        tier: backend
+        env: {{ ENV }}
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: service-exam
+          tier: backend
+          env: {{ ENV }}
+          release: k8s-release
+      spec:
+          {% if ENV == "prod" %}
+          imagePullSecrets:
+          - name: regsecret
+          {% endif %}
+          containers:
+          - name: service-exam
+            {% if ENV == "prod" %}
+            image: reg.k8s.com/arch-{{ ENV }}/service-exam:{{ TIMESTAMP }}
+            {% else %}
+            image: reg.ops.com/arch-{{ ENV }}/service-exam:{{ TIMESTAMP }}
+            {% endif %}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              {% if ENV == 'prod' %}
+              requests:
+                memory: "1024Mi"
+                cpu: "1024m"
+              limits:
+                memory: "2048Mi"
+                cpu: "2048m"
+              {% else %}
+              requests:
+                memory: "1024Mi"
+                cpu: "512m"
+              limits:
+                memory: "2048Mi"
+                cpu: "1024m"
+              {% endif %}
+            ports:
+            - name: service-exam
+              containerPort: 8803
+            {% if ENV == "test" %}
+            - name: debug-test
+              containerPort: 28803
+            {% elif ENV == "dev" %}
+            - name: debug-dev
+              containerPort: 18803
+            {% else %}
+            
+            {% endif %}
+            
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: exam-service
+  namespace: arch-{{ ENV }}
+spec:
+  selector:
+    app: service-exam
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - name: service-exam
+    port: 8803
+    targetPort: 8803
+  {% if ENV == "test" %}
+  - name: debug-test
+    port: 28803
+    targetPort: 28803
+  {% elif ENV == "dev" %}
+  - name: debug-dev
+    port: 18803
+    targetPort: 18803
+  {% else %}
+  
+  {% endif %}
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: service-exam
+  namespace: arch-{{ ENV }}
+spec:
+  rules:
+  - host: service-exam.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: exam-service
+          servicePort: 8803
+
+

@@ -1,0 +1,115 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: service-resource
+    namespace: arch-{{ ENV }}
+spec:
+    {% if ENV == "prod" %}
+    replicas: 2
+    minReadySeconds: 60
+    {% else %}
+    replicas: 1
+    {% endif %}
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: service-resource
+        tier: backend
+        env: {{ ENV }}
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: service-resource
+          tier: backend
+          env: {{ ENV }}
+          release: k8s-release
+      spec:
+          {% if ENV == "prod" %}
+          imagePullSecrets:
+          - name: regsecret
+          {% endif %}
+          containers:
+          - name: service-resource
+            {% if ENV == "prod" %}
+            image: reg.k8s.com/arch-{{ ENV }}/service-resource:{{ TIMESTAMP }}
+            {% else %}
+            image: reg.ops.com/arch-{{ ENV }}/service-resource:{{ TIMESTAMP }}
+            {% endif %}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              {% if ENV == 'prod' %}
+              requests:
+                memory: "1024Mi"
+                cpu: "1024m"
+              limits:
+                memory: "2048Mi"
+                cpu: "2048m"
+              {% else %}
+              requests:
+                memory: "1024Mi"
+                cpu: "512m"
+              limits:
+                memory: "2048Mi"
+                cpu: "1024m"
+              {% endif %}
+            ports:
+            - name: resource
+              containerPort: 8801
+            {% if ENV == "test" %}
+            - name: debug-test
+              containerPort: 28801
+            {% elif ENV == "dev" %}
+            - name: debug-dev
+              containerPort: 18801
+            {% else %}
+            
+            {% endif %}
+            
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: resource-service
+  namespace: arch-{{ ENV }}
+spec:
+  selector:
+    app: service-resource
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - name: service-resource
+    port: 8801
+    targetPort: 8801
+  {% if ENV == "test" %}
+  - name: debug-test
+    port: 28801
+    targetPort: 28801
+  {% elif ENV == "dev" %}
+  - name: debug-dev
+    port: 18801
+    targetPort: 18801
+  {% else %}
+  
+  {% endif %}
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: service-resource
+  namespace: arch-{{ ENV }}
+spec:
+  rules:
+  - host: service-resource.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: resource-service
+          servicePort: 8801
+
+

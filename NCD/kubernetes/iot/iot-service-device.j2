@@ -1,0 +1,70 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: iot-service-device
+    namespace: iot-{{ ENV }}
+spec:
+    replicas: 1
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: iot-service-device
+        tier: backend
+        env: {{ ENV }}
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: iot-service-device
+          tier: backend
+          env: {{ ENV }}
+          release: k8s-release
+      spec:
+          containers:
+          - name: iot-service-device
+            image: reg.ops.com/iot-{{ ENV }}/iot-service-device:{{ TIMESTAMP }}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              requests:
+                memory: "1024Mi"
+                cpu: "500m"
+              limits:
+                memory: "2048Mi"
+                cpu: "1000m"
+            ports:
+            - name: iot-device
+              containerPort: 8804
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iot-device-service
+  namespace: iot-{{ ENV }}
+spec:
+  selector:
+    app: iot-service-device
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - port: 8804
+    targetPort: 8804
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: iot-device
+  namespace: iot-{{ ENV }}
+spec:
+  rules:
+  - host: iot-service-device.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: iot-device-service
+          servicePort: 8804

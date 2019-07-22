@@ -33,7 +33,7 @@ fi
 # JVM 参数
 # -XX:+PrintTenuringDistribution 指定JVM 在每次新生代GC时，输出幸存区中对象的年龄分布。
 
-JAVA_OPTS='
+JAVA_OPTS="
 -server
 -XX:+UseG1GC
 -Xss512k
@@ -46,20 +46,13 @@ JAVA_OPTS='
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=/ddhome/project/{{ project }}/{{ version }}/server/{{ app }}/jvmdebug/dump/heapdump-room.hprof
 -Xloggc:/ddhome/project/{{ project }}/{{ version }}/server/{{ app }}/gclog.log
-{% if appname.stdout == 'iot-gateway' %}
--Djava.io.tmpdir=/ddhome/tmp
-{% endif %}
 -Djava.rmi.server.hostname={{ host }}
 -Djavax.management.builder.initial=
 -Dcom.sun.management.jmxremote=true
 -Dcom.sun.management.jmxremote.port={{ jmx }}
 -Dcom.sun.management.jmxremote.ssl=false
 -Dcom.sun.management.jmxremote.authenticate=false
--Dspring.profiles.active='${APP_ENV}
-
-
-# 远程端口调试
-#-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=7583
+-Dspring.profiles.active=${APP_ENV}"
 
 # 启动服务
 se_start()

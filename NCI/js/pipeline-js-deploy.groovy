@@ -10,12 +10,13 @@ try{
             }
 
             stage("回滚版本${ROLLBACK}") {
-                sh "python deploy.py -a ${APPNAME} -r ${APPNAME} -e ${BRANCH} -u http://192.168.55.156:88 -t ${ROLLBACK} -d ${DIR}"
+                sh "python deploy.py -a ${APPNAME} -p ${PROJECT} -v ${VERSION} -d ${DIR} -e ${BRANCH} -u http://192.168.66.94:88 -t ${ROLLBACK}"
             }
         }
     } else {
             echo "Build App ${APPNAME}"
             // 打包
+            /*
             node('slave-02') {
                 stage('拉取项目代码') {
                     git branch: "${BRANCH}", credentialsId: '9852bbe8-3935-47a5-b24c-d684c89387d2', url: "${GIT_URL}"
@@ -46,7 +47,7 @@ try{
                     sh "ssh root@192.168.66.94 'chown -R nginx /ddhome/package'"
                 }
             }
-
+            */
             // 发布
             node('master') {
                 stage('拉取部署代码') {

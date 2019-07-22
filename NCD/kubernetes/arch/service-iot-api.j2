@@ -1,0 +1,190 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: service-iot-api
+    namespace: arch-{{ ENV }}
+spec:
+    {% if ENV == "prod" %}
+    replicas: 1
+    minReadySeconds: 60
+    {% else %}
+    replicas: 1
+    {% endif %}
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: service-iot-api
+        tier: backend
+        env: {{ ENV }}
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: service-iot-api
+          tier: backend
+          env: {{ ENV }}
+          release: k8s-release
+      spec:
+          hostAliases:
+          - ip: "192.168.55.150"
+            hostnames:
+            - "ddda"
+          - ip: "192.168.55.151"
+            hostnames:
+            - "dddava"
+          - ip: "192.168.55.152"
+            hostnames:
+            - "dddavb"
+          - ip: "192.168.55.153"
+            hostnames:
+            - "dddavc"
+          - ip: "192.168.55.154"
+            hostnames:
+            - "dddavd"
+          - ip: "192.168.55.155"
+            hostnames:
+            - "dddave"
+          - ip: "192.168.55.156"
+            hostnames:
+            - "dddavf"
+          - ip: "192.168.55.157"
+            hostnames:
+            - "dddavg"
+          - ip: "192.168.55.160"
+            hostnames:
+            - "dddb"
+          - ip: "192.168.55.161"
+            hostnames:
+            - "dddbva"
+          - ip: "192.168.55.162"
+            hostnames:
+            - "dddbvb"
+          - ip: "192.168.55.163"
+            hostnames:
+            - "dddbvc"
+          - ip: "192.168.55.164"
+            hostnames:
+            - "dddbvd"
+          - ip: "192.168.55.165"
+            hostnames:
+            - "dddbve"
+          - ip: "192.168.55.166"
+            hostnames:
+            - "dddbvf"
+          - ip: "192.168.55.170"
+            hostnames:
+            - "dddc"
+          - ip: "192.168.55.171"
+            hostnames:
+            - "dddcva"
+          - ip: "192.168.55.172"
+            hostnames:
+            - "dddcvb"
+          - ip: "192.168.55.173"
+            hostnames:
+            - "dddcvc"
+          - ip: "192.168.55.174"
+            hostnames:
+            - "dddcvd"
+          - ip: "192.168.55.175"
+            hostnames:
+            - "dddcve"
+          - ip: "192.168.55.176"
+            hostnames:
+            - "dddcvf"
+          - ip: "192.168.55.91"
+            hostnames:
+            - "ddjva"
+          - ip: "192.168.55.92"
+            hostnames:
+            - "ddjvb"
+          - ip: "192.168.55.93"
+            hostnames:
+            - "ddkva"
+          {% if ENV == "prod" %}
+          imagePullSecrets:
+          - name: regsecret
+          {% endif %}
+          containers:
+          - name: service-iot-api
+            {% if ENV == "prod" %}
+            image: reg.k8s.com/arch-{{ ENV }}/service-iot-api:{{ TIMESTAMP }}
+            {% else %}
+            image: reg.ops.com/arch-{{ ENV }}/service-iot-api:{{ TIMESTAMP }}
+            {% endif %}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              {% if ENV == 'prod' %}
+              requests:
+                memory: "1024Mi"
+                cpu: "1024m"
+              limits:
+                memory: "2048Mi"
+                cpu: "2048m"
+              {% else %}
+              requests:
+                memory: "1024Mi"
+                cpu: "512m"
+              limits:
+                memory: "2048Mi"
+                cpu: "1024m"
+              {% endif %}
+            ports:
+            - name: service-api
+              containerPort: 8815
+            {% if ENV == "test" %}
+            - name: debug-test
+              containerPort: 28815
+            {% elif ENV == "dev" %}
+            - name: debug-dev
+              containerPort: 18815
+            {% else %}
+            
+            {% endif %}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-service
+  namespace: arch-{{ ENV }}
+spec:
+  selector:
+    app: service-iot-api
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - name: service-api
+    port: 8815
+    targetPort: 8815
+  {% if ENV == "test" %}
+  - name: debug-test
+    port: 28815
+    targetPort: 28815
+  {% elif ENV == "dev" %}
+  - name: debug-dev
+    port: 18815
+    targetPort: 18815
+  {% else %}
+  
+  {% endif %}
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: service-iot-api
+  namespace: arch-{{ ENV }}
+spec:
+  rules:
+  - host: service-iot-api.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: api-service
+          servicePort: 8815
+
+

@@ -16,9 +16,9 @@ node("master") {
         }
 
         stage("加入本地dns解析与加入ca信任") {
-            sh "ansible ${HOSTS} -m copy -a \"src=./file/resolv.conf dest=/etc/resolv.conf\""
+            sh "ansible ${HOSTS} -m copy -a \"src=./files/resolv.conf dest=/etc/resolv.conf\""
             sh "ansible ${HOSTS} -m file -a \"path=/etc/docker/certs.d/reg.ops.com state=directory recurse=true\""
-            sh "ansible ${HOSTS} -m copy -a \"src=./file/ca.crt dest=/etc/docker/certs.d/reg.ops.com/ca.crt\""
+            sh "ansible ${HOSTS} -m copy -a \"src=./files/ca.crt dest=/etc/docker/certs.d/reg.ops.com/ca.crt\""
         }
 
         stage("修改graph") {

@@ -1,0 +1,114 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: service-course
+    namespace: arch-{{ ENV }}
+spec:
+    {% if ENV == "prod" %}
+    replicas: 2
+    minReadySeconds: 60
+    {% else %}
+    replicas: 1
+    {% endif %}
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: service-course
+        tier: backend
+        env: {{ ENV }}
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: service-course
+          tier: backend
+          env: {{ ENV }}
+          release: k8s-release
+      spec:
+          {% if ENV == "prod" %}
+          imagePullSecrets:
+          - name: regsecret
+          {% endif %}
+          containers:
+          - name: service-course
+            {% if ENV == "prod" %}
+            image: reg.k8s.com/arch-{{ ENV }}/service-course:{{ TIMESTAMP }}
+            {% else %}
+            image: reg.ops.com/arch-{{ ENV }}/service-course:{{ TIMESTAMP }}
+            {% endif %}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              {% if ENV == 'prod' %}
+              requests:
+                memory: "1024Mi"
+                cpu: "1024m"
+              limits:
+                memory: "2048Mi"
+                cpu: "2048m"
+              {% else %}
+              requests:
+                memory: "1024Mi"
+                cpu: "512m"
+              limits:
+                memory: "2048Mi"
+                cpu: "1024m"
+              {% endif %}
+            ports:
+            - name: service-course
+              containerPort: 8809
+            {% if ENV == "test" %}
+            - name: debug-test
+              containerPort: 28809
+            {% elif ENV == "dev" %}
+            - name: debug-dev
+              containerPort: 18809
+            {% else %}
+            
+            {% endif %}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: course-service
+  namespace: arch-{{ ENV }}
+spec:
+  selector:
+    app: service-course
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - name: service-course
+    port: 8809
+    targetPort: 8809
+  {% if ENV == "test" %}
+  - name: debug-test
+    port: 28809
+    targetPort: 28809
+  {% elif ENV == "dev" %}
+  - name: debug-dev
+    port: 18809
+    targetPort: 18809
+  {% else %}
+  
+  {% endif %}
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: service-course
+  namespace: arch-{{ ENV }}
+spec:
+  rules:
+  - host: service-course.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: course-service
+          servicePort: 8809
+
+

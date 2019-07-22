@@ -1,0 +1,108 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: ai-common-zuul
+    namespace: aicloud-{{ ENV }}
+spec:
+    {% if ENV == 'prod'%}
+    replicas: 2
+    minReadySeconds: 60
+    {% else %}
+    replicas: 1
+    {% endif %}
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: ai-common-zuul
+        env: {{ ENV }}
+        tier: backend
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: ai-common-zuul
+          env: {{ ENV }}
+          tier: backend
+          release: k8s-release
+      spec:
+          containers:
+          - name: ai-common-zuul
+            image: reg.ops.com/aicloud-{{ ENV }}/ai-common-zuul:{{ TIMESTAMP }}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              {% if ENV == 'prod' %}
+              requests:
+                memory: "2048Mi"
+                cpu: "1024m"
+              limits:
+                memory: "4096Mi"
+                cpu: "2048m"
+              {% else %}
+              requests:
+                memory: "2048Mi"
+                cpu: "512m"
+              limits:
+                memory: "4096Mi"
+                cpu: "1024m"
+              {% endif %}
+            ports:
+            - name: common-zuul
+              containerPort: 7770
+            
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zuul-service
+  namespace: aicloud-{{ ENV }}
+spec:
+  selector:
+    app: ai-common-zuul
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - port: 7770
+    targetPort: 7770
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ai-common-zuul
+  namespace: aicloud-{{ ENV }}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "1024m"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "4"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "32k"
+spec:
+  {% if ENV == "prod" %}
+  tls:
+  - hosts:
+    - ai-gw.zj-huawei.com
+    secretName: zj-huawei-ingress-tls-secret
+  {% endif %}
+    
+  rules:
+  - host: ai-common-zuul.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: zuul-service
+          servicePort: 7770
+
+  {% if ENV == "prod" %}
+  - host: ai-gw.zj-huawei.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: zuul-service
+          servicePort: 7770
+  {% endif %}

@@ -1,0 +1,87 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: registe
+    namespace: arch-{{ ENV }}
+spec:
+    replicas: 1
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: registe
+        env: {{ ENV }}
+        tier: backend
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: registe
+          env: {{ ENV }}
+          tier: backend
+          release: k8s-release
+      spec:
+          {% if ENV == "prod" %}
+          imagePullSecrets:
+          - name: regsecret
+          {% endif %}
+          containers:
+          - name: registe
+            {% if ENV == "prod" %}
+            image: reg.k8s.com/arch-{{ ENV }}/registe:{{ TIMESTAMP }}
+            {% else %}
+            image: reg.ops.com/arch-{{ ENV }}/registe:{{ TIMESTAMP }}
+            {% endif %}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              {% if ENV == 'prod' %}
+              requests:
+                memory: "1024Mi"
+                cpu: "1024m"
+              limits:
+                memory: "2048Mi"
+                cpu: "2048m"
+              {% else %}
+              requests:
+                memory: "1024Mi"
+                cpu: "512m"
+              limits:
+                memory: "2048Mi"
+                cpu: "1024m"
+              {% endif %}
+            ports:
+            - name: registe
+              containerPort: 8081
+            
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registe-service
+  namespace: arch-{{ ENV }}
+spec:
+  selector:
+    app: registe
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - port: 8081
+    targetPort: 8081
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: registe
+  namespace: arch-{{ ENV }}
+spec:
+  rules:
+  - host: registe.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: registe-service
+          servicePort: 8081
+

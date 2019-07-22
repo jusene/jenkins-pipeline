@@ -10,7 +10,7 @@ try{
                 }
 
                 stage("回滚版本${ROLLBACK}") {
-                    sh "python deploy.py -a ${RUN_APPNAME} -p ${PROJECT} -v ${VERSION} -e ${BRANCH} -u http://192.168.66.94:88 -t ${ROLLBACK}"
+                    sh "python deploy_multi.py -a ${RUN_APPNAME} -p ${PROJECT} -v ${VERSION} -e ${BRANCH} -u http://192.168.66.94:88 -t ${ROLLBACK}"
                 }
             } 
 
@@ -26,19 +26,27 @@ try{
                     sh '[ -n "${check_to_tag}" ] && git checkout ${check_to_tag} || echo "checkout ${check_to_tag} is not exist or none!"'
                 }
 
-                if ("${BRANCH}" == 'master') {
+                def s1 = "${BRANCH}"
+
+                if  ( s1 == 'master' ) {
                     env.BRANCH = 'prod'
+                } else {
+                    if (s1.startsWith('dev')) {
+                        env.BRANCH = 'dev'
+                    } else if (s1.startsWith('test')) {
+                        env.BRANCH = 'test'
+                    } else if (s1.startsWith('pre')){
+                        env.BRANCH = 'pre'
+                    } else {
+                        echo "unkown branch"
+                    }
                 }
 
-                if ("${BRANCH}" == 'tmp_190220') {
-                    env.BRANCH = 'test'
-                }
 
                 stage('Do Package打包') {
                     if ("${PROJECT}" == 'iot') {
                         sh "mvn clean install -Dmaven.test.skip=true -pl iot-beans,iot-facade,iot-common,${RUN_APPNAME} -f pom.xml"
-                    }
-                    if ("${PROJECT}" == 'bigdata') {
+                    } else {
                         sh "mvn clean install -Dmaven.test.skip=true -f pom.xml"
                     }
                 }
@@ -72,32 +80,6 @@ try{
                 } 
             }
     }
-            // 自动化测试
-            if ("${BRANCH}" == 'test') {
-                node('master')
-			        stage('执行冒烟用例') {
-				    switch("${AUTOTEST}") {            
-					    case "iot2.0-api": 
-						    build job: 'IOT-Api-SmokeTesting'; 
-						    break; 
-					    case "iot2.0-ui": 
-						    build job: 'IOT-UI-SmokeTesting'; 
-						    break; 
-					    case "bigdata2.0-api": 
-						    build job: 'BigData2.0-Api-SmokeTesting'; 
-						    break; 
-					    case "bigdata2.0-ui": 
-						    build job: 'BigData2.0-UI-SmokeTesting'; 
-						    break; 
-					    default: 
-						    println("The value is unknown"); 
-						    break; 
-				    }
-                }
-            }
-            	
-    
-
 } catch (err) {
          echo "Caught: ${err}"
 } finally {

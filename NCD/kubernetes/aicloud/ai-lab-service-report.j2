@@ -1,0 +1,87 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: ai-lab-service-report
+    namespace: aicloud-{{ ENV }}
+spec:
+    {% if ENV == "prod" %}
+    replicas: 1
+    minReadySeconds: 60
+    {% else %}
+    replicas: 1
+    {% endif %}
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: ai-lab-service-report
+        env: {{ ENV }}
+        tier: backend
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: ai-lab-service-report
+          env: {{ ENV }}
+          tier: backend
+          release: k8s-release
+      spec:
+          {% if ENV == "prod" %}
+          imagePullSecrets:
+          - name: regsecret
+          {% endif %}
+          containers:
+          - name: ai-lab-service-report
+            {% if ENV == "prod" %}
+            image: reg.k8s.com/aicloud-{{ ENV }}/ai-lab-service-report:{{ TIMESTAMP }}
+            {% else %}
+            image: reg.ops.com/aicloud-{{ ENV }}/ai-lab-service-report:{{ TIMESTAMP }}
+            {% endif %}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              requests:
+                memory: "1024Mi"
+                cpu: "500m"
+              limits:
+                memory: "2048Mi"
+                cpu: "1000m"
+            ports:
+            - name: service-report
+              containerPort: 8806
+            
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-report-service
+  namespace: aicloud-{{ ENV }}
+spec:
+  selector:
+    app: ai-lab-service-report
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - port: 8806
+    targetPort: 8806
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ai-lab-service-report
+  namespace: aicloud-{{ ENV }}
+ 
+spec:
+
+  rules:
+  - host: ai-lab-service-report.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: ai-report-service
+          servicePort: 8806
+
+

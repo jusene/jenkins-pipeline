@@ -1,0 +1,166 @@
+#!/bin/sh
+
+# 加载环境变量
+source /etc/profile
+
+# 应用名
+APP_NAME={{ app }}
+
+# 应用目录
+SERVICE_DIR=/ddhome/project/{{ project }}/{{ version }}/server/${APP_NAME}
+
+# 服务名称
+SERVICE_NAME=${APP_NAME}
+
+# 应用数据
+JAR_NAME=${SERVICE_DIR}/${SERVICE_NAME}.jar
+
+# 服务PID文件
+PID=${SERVICE_DIR}/${SERVICE_NAME}.pid
+
+# 服务日志
+APP_LOGS=${SERVICE_DIR}/logs
+
+#服务环境
+APP_ENV=$2
+
+
+if [ ! -d ${SERVICE_DIR} ]; then
+    echo "${SERVICE_DIR} directory does not exist."
+    exit 0 
+fi
+
+# JVM 参数
+# -XX:+PrintTenuringDistribution 指定JVM 在每次新生代GC时，输出幸存区中对象的年龄分布。
+
+JAVA_OPTS="
+-server
+-XX:+UseG1GC
+-Xss512k
+{% if app in ['huayun-common-zuul'] %}
+-Xms1024m
+-Xmx1024m
+{% elif app in ['iot-gateway'] %}
+-Xms6144m
+-Xmx6144m
+{% else %}
+-Xms512m
+-Xmx512m
+{% endif %}
+-XX:SurvivorRatio=6
+-XX:+PrintGCDetails
+-XX:+PrintGCDateStamps
+-XX:+PrintGCTimeStamps
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/ddhome/project/{{ project }}/{{ version }}/server/{{ app }}/jvmdebug/dump/heapdump-room.hprof
+-Xloggc:/ddhome/project/{{ project }}/{{ version }}/server/{{ app }}/gclog.log
+{% if project == 'iot' %}
+-Djava.io.tmpdir=/ddhome/tmp
+{% endif %}
+{% if app == 'huayun-lab-data' %}
+-DHADOOP_USER_NAME=hdfs
+{% endif %}
+-Dspring.profiles.active=${APP_ENV}"
+
+
+# 远程端口调试
+#-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=
+
+# 启动服务
+se_start()
+{
+   if [ ! -n "$APP_ENV" ]; then
+     echo "请设置应用环境"
+   else
+    nohup java ${JAVA_OPTS} \
+    -jar ${JAR_NAME} \
+    >>${APP_LOGS} 2>&1 &
+    sleep 5
+    # 记录PID号
+    echo `ps -ef | grep -w "${SERVICE_NAME}" | grep -v "grep" | grep -v "iot-local"|grep -v "startup.sh" | awk '{print $2}'` > ${PID}
+    #echo $! > ${PID}
+    echo "=== start ${SERVICE_NAME}"
+   fi
+}
+
+# 停止服务
+se_stop()
+{
+    # 优雅的结束
+    kill `cat ${PID}`
+    rm -rf ${PID}
+    echo "=== stop ${SERVICE_NAME}"
+
+    sleep 7
+    P_ID=`ps -ef | grep -w "${SERVICE_NAME}" | grep -v "iot-local" |grep -v "grep"| grep -v "startup.sh" | awk '{print $2}'`
+    if [ -z ${P_ID} ] ; then
+        echo "=== ${SERVICE_NAME} process not exists or stop success"
+    else
+        echo "=== ${SERVICE_NAME} process pid is:${P_ID}"
+        echo "=== begin kill ${SERVICE_NAME} process, pid is:$P_ID"
+        sleep 3
+
+        # 强行结束
+        kill -9 ${P_ID} || return 0
+    fi
+}
+
+# 重启服务
+se_restart()
+{
+    se_stop
+    se_start
+}
+
+# 查看状态
+se_status()
+{
+    if [ -e ${PID} ] ; then
+        P_ID=`cat ${PID}`
+        R_ID=`ps -ef | grep -w "${SERVICE_NAME}" | grep -v "iot-local" |grep -v "grep"| grep -v "startup.sh" | awk '{print $2}'`
+        if [ $P_ID -eq $R_ID  ];then
+             echo "=== ${SERVICE_NAME} process pid is ${R_ID} . The ${SERVICE_NAME} service is running ."
+             return 0
+        else:
+             rm -rf ${PID}
+             echo "=== ${SERVICE_NAME} process not exists . The ${SERVICE_NAME} service is not running ."
+             return 1
+        fi
+    else
+        echo "=== ${SERVICE_NAME} process not exists . The ${SERVICE_NAME} service is not running ."
+        return 1
+    fi
+}
+
+
+case ${1} in
+    start)
+        if se_status; then
+           echo "=== The ${SERVICE_NAME} service is aleardy running ."
+        else
+           se_start
+        fi
+    ;;
+    stop)
+        if se_status; then
+           se_stop
+        else
+           echo "=== The ${SERVICE_NAME} service is not running ."
+ 	fi
+    ;;
+    restart)
+        if se_status; then
+           se_restart
+        else
+           se_start
+        fi
+    ;;
+    status)
+        se_status
+    ;;
+    *)
+        echo "Usage: $0 [start|stop|restart|status]."
+    ;;
+esac
+
+exit 0

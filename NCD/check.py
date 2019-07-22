@@ -30,9 +30,15 @@ class check:
             resp = urllib2.urlopen(self.get_config_url())
             conf = json.loads(resp.read())
             return conf['propertySources'][0]['source']['server.port']
-        except Exception as e:
+        except Exception:
             if self.app == "iot-config":
                 return config.get(self.env).CONFIG_PORT
+            elif self.app == "iot-service-resource":
+                return config.get(self.env).RESOURCE_PORT
+            elif self.app == "iot-registe":
+                return config.get(self.env).REGISTE_PORT
+            elif self.app == "iot-turbine":
+                return config.get(self.env).TURBINE_PORT
             else:
                 logging.info(self.get_config_url())
                 logging.info("****** Get {app} service port fail, please check {app} or iot-config".format(app=self.app))
@@ -43,9 +49,8 @@ class check:
             resp = urllib2.urlopen(self.get_health_url(service_port))
             health = json.loads(resp.read())
             return health['status']
-        except Exception as e:
+        except Exception:
             logging.info(self.get_health_url(service_port))
             logging.info("****** Check {app} service fail, please check {app} or eureka".format(app=self.app))
-
 
 

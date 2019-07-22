@@ -1,0 +1,169 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: service-lab-data
+    namespace: arch-{{ ENV }}
+spec:
+    
+    {% if ENV == "prod" %}
+    replicas: 2
+    minReadySeconds: 60
+    {% else %}
+    replicas: 1
+    {% endif %}
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: service-lab-data
+        tier: backend
+        env: {{ ENV }}
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: service-lab-data
+          tier: backend
+          env: {{ ENV }}
+          release: k8s-release
+      spec:
+          hostAliases:
+          - ip: "192.168.55.155"
+            hostnames:
+            - "dddave"
+          - ip: "192.168.55.156"
+            hostnames:
+            - "dddavf"
+          - ip: "192.168.55.157"
+            hostnames:
+            - "dddavg"
+          - ip: "192.168.55.101"
+            hostnames:
+            - "ddava"
+          - ip: "192.168.55.102"
+            hostnames:
+            - "ddavb"
+          - ip: "192.168.55.103"
+            hostnames:
+            - "ddavc"
+          - ip: "192.168.55.104"
+            hostnames:
+            - "ddavd"
+          - ip: "192.168.55.105"
+            hostnames:
+            - "ddave"
+          - ip: "192.168.55.111"
+            hostnames:
+            - "ddbva"
+          - ip: "192.168.55.112"
+            hostnames:
+            - "ddbvb"
+          - ip: "192.168.55.113"
+            hostnames:
+            - "ddbvc"
+          - ip: "192.168.55.114"
+            hostnames:
+            - "ddbvd"
+          - ip: "192.168.55.115"
+            hostnames:
+            - "ddbve"
+          - ip: "192.168.55.121"
+            hostnames:
+            - "ddcva"
+          - ip: "192.168.55.122"
+            hostnames:
+            - "ddcvb"
+          - ip: "192.168.55.123"
+            hostnames:
+            - "ddcvc"
+          - ip: "192.168.55.124"
+            hostnames:
+            - "ddcvd"
+          - ip: "192.168.55.125"
+            hostnames:
+            - "ddcve"
+          {% if ENV == "prod" %}
+          imagePullSecrets:
+          - name: regsecret
+          {% endif %}
+          containers:
+          - name: service-lab-data
+            {% if ENV == "prod" %}
+            image: reg.k8s.com/arch-{{ ENV }}/service-lab-data:{{ TIMESTAMP }}
+            {% else %}
+            image: reg.ops.com/arch-{{ ENV }}/service-lab-data:{{ TIMESTAMP }}
+            {% endif %}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              {% if ENV == 'prod' %}
+              requests:
+                memory: "1024Mi"
+                cpu: "1024m"
+              limits:
+                memory: "2048Mi"
+                cpu: "2048m"
+              {% else %}
+              requests:
+                memory: "1024Mi"
+                cpu: "512m"
+              limits:
+                memory: "2048Mi"
+                cpu: "1024m"
+              {% endif %}
+            ports:
+            - name: lab-data
+              containerPort: 8825
+            {% if ENV == "test" %}
+            - name: debug-test
+              containerPort: 28825
+            {% elif ENV == "dev" %}
+            - name: debug-dev
+              containerPort: 18825
+            {% else %}
+            
+            {% endif %}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-service
+  namespace: arch-{{ ENV }}
+spec:
+  selector:
+    app: service-lab-data
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - name: service-lab-data
+    port: 8825
+    targetPort: 8825
+  {% if ENV == "test" %}
+  - name: debug-test
+    port: 28825
+    targetPort: 28825
+  {% elif ENV == "dev" %}
+  - name: debug-dev
+    port: 18825
+    targetPort: 18825
+  {% else %}
+  
+  {% endif %}
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: service-lab-data
+  namespace: arch-{{ ENV }}
+spec:
+  rules:
+  - host: service-lab-data.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: data-service
+          servicePort: 8825
+

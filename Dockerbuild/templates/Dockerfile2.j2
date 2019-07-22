@@ -1,0 +1,8 @@
+FROM reg.ops.com/library/nginx:latest
+MAINTAINER zj-huawei
+
+WORKDIR /ddhome/project/{{ PROJECT }}/{{ VERSION }}/web/
+
+COPY dist/* /ddhome/project/{{ PROJECT }}/{{ VERSION }}/web/ 
+COPY {{APP}}.conf /etc/nginx/conf.d/
+

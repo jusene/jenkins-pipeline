@@ -1,0 +1,114 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+    name: service-iot-device
+    namespace: arch-{{ ENV }}
+spec:
+    {% if ENV == "prod" %}
+    replicas: 1
+    minReadySeconds: 60
+    {% else %}
+    replicas: 1
+    {% endif %}
+    revisionHistoryLimit: 3
+    selector:
+      matchLabels:
+        app: service-iot-device
+        tier: backend
+        env: {{ ENV }}
+        release: k8s-release
+    template:
+      metadata:
+        labels:
+          app: service-iot-device
+          tier: backend
+          env: {{ ENV }}
+          release: k8s-release
+      spec:
+          {% if ENV == "prod" %}
+          imagePullSecrets:
+          - name: regsecret
+          {% endif %}
+          containers:
+          - name: service-iot-device
+            {% if ENV == "prod" %}
+            image: reg.k8s.com/arch-{{ ENV }}/service-iot-device:{{ TIMESTAMP }}
+            {% else %}
+            image: reg.ops.com/arch-{{ ENV }}/service-iot-device:{{ TIMESTAMP }}
+            {% endif %}
+            imagePullPolicy: IfNotPresent
+            args: ["{{ ENV }}"]
+            resources:
+              {% if ENV == 'prod' %}
+              requests:
+                memory: "1024Mi"
+                cpu: "1024m"
+              limits:
+                memory: "2048Mi"
+                cpu: "2048m"
+              {% else %}
+              requests:
+                memory: "1024Mi"
+                cpu: "512m"
+              limits:
+                memory: "2048Mi"
+                cpu: "1024m"
+              {% endif %}
+            ports:
+            - name: service-device
+              containerPort: 8811
+            {% if ENV == "test" %}
+            - name: debug-test
+              containerPort: 28811
+            {% elif ENV == "dev" %}
+            - name: debug-dev
+              containerPort: 18811
+            {% else %}
+            
+            {% endif %}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: device-service
+  namespace: arch-{{ ENV }}
+spec:
+  selector:
+    app: service-iot-device
+    tier: backend
+    env: {{ ENV }}
+    release: k8s-release
+  ports:
+  - name: service-device
+    port: 8811
+    targetPort: 8811
+  {% if ENV == "test" %}
+  - name: debug-test
+    port: 28811
+    targetPort: 28811
+  {% elif ENV == "dev" %}
+  - name: debug-dev
+    port: 18811
+    targetPort: 18811
+  {% else %}
+  
+  {% endif %}
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: service-iot-device
+  namespace: arch-{{ ENV }}
+spec:
+  rules:
+  - host: service-iot-device.{{ ENV }}.sysadmin.com
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: device-service
+          servicePort: 8811
+
+

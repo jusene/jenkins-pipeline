@@ -8,8 +8,13 @@ JAVA_OPTS="
 -server
 -XX:+UseG1GC
 -Xss512k
+{% if APP in ['iot-gateway', 'huayun-common-zuul', 'ai-common-zuul', 'gateway'] %}
+-Xms2048m
+-Xmx2048m
+{% else %}
 -Xms512m
 -Xmx512m
+{% endif %}
 -XX:SurvivorRatio=6
 -XX:+PrintGCDetails
 -XX:+PrintGCDateStamps
@@ -17,18 +22,29 @@ JAVA_OPTS="
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=/ddhome/project/{{ PROJECT }}/{{ VERSION }}/server/{{ APP }}/heapdump-room.hprof
 -Xloggc:/ddhome/project/{{ PROJECT }}/{{ VERSION }}/server/{{ APP }}/gclog.log
--Dspring.profiles.active=${APP_ENV}"
+{% if PROJECT == 'iot' %}
+-Djava.io.tmpdir=/ddhome/tmp
+{% endif %}
+-Dspring.profiles.active=${APP_ENV}
+{# 远程调试接口 #}
+{% if PORT %}
+-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address={{ PORT }}
+{% endif %}
+{% if APP in ['huayun-lab-data', 'ai-lab-data'] %}
+-DHADOOP_USER_NAME=hdfs
+{% endif %}
+"
 
 
 case $APP_ENV in
-"dev"|"test"|"prod")
+"dev"|"test"|"prod"|"local")
     java $JAVA_OPTS -jar {{ APP }}.jar | tee {{ APP }}.log
     ;;
-"sh")
-    /bin/sh
+"sh"|"bash")
+    /bin/bash
     ;;
 *)
-    echo "Usage: $0 (dev|test|prod|sh)"
+    echo "Usage: $0 (dev|test|prod|local|sh)"
     ;;
 esac
     
