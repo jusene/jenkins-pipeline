@@ -1,0 +1,72 @@
+swagger: "2.0"
+info:
+  description: "DevOps Api Service"
+  version: "1.0.0"
+  title: "API FOR DEVOPS"
+  #basePath: "/v1"
+tags:
+- name: "consul"
+  description: "Everything about consul service"
+consumes:
+- "application/json"
+produces:
+- "application/json"
+schemes:
+- "http"
+
+paths:
+  /consul:
+    post:
+      tags:
+      - "consul"
+      summary: "Register a service to consul"
+      description: ""
+      operationId: "views.registe.register"
+      parameters:
+      - in: "body"
+        name: "body"
+        description: "Service object that needs to be added to the consul"
+        required: true
+        schema:
+          $ref: "#/definitions/Service"
+      responses:
+        405:
+          description: "Invalid input"
+        200:
+          description: "successful operation"
+    
+  /consul/{service_id}:
+    delete:
+      tags:
+      - "consul"
+      summary: "deregister service by service id"
+      description: ""
+      operationId: "views.registe.deregister"
+      parameters:
+      - name: "service_id"
+        in: "path"
+        description: "service id"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "successful operation"
+      
+definitions:
+  Service:
+    type: "object"
+    required:
+    - "name"
+    - "id"
+    - "address"
+    - "port"
+    properties:
+      name:
+        type: "string"
+      id:
+        type: "string"
+      address:
+        type: "string"
+      port:
+        type: "integer"
+        format: "int32"
